@@ -1,0 +1,17 @@
+# 运行时不进仓库（Electron 二进制，357MB）
+runtime/
+
+# 本地数据不进仓库（游玩记录、封面、Chromium 配置缓存）
+data/
+
+# 依赖：用 npm ci 还原（见 app/package-lock.json）
+node_modules/
+
+# 杂项
+*.log
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# IDE（JetBrains）
+.idea/
