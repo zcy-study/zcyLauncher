@@ -5,6 +5,10 @@
 Electron + 原生 JavaScript（主进程 / 渲染进程都是 CommonJS，无框架、无打包步骤），
 数据落在一个 `library.json` 里。
 
+## 版本
+
+当前版本 **1.0.0**，改动记录见 [CHANGELOG.md](CHANGELOG.md)。
+
 ## 目录结构
 
 ```
