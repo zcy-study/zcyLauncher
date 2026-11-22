@@ -1,7 +1,7 @@
 {
   "name": "zcy-gal-launcher",
   "productName": "zcyGal 启动器",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "本地 galgame 库启动器：展示、启动、记录时长",
   "main": "main/index.js",
