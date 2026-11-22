@@ -486,8 +486,20 @@ function coverBlock(g, cls) {
   </div>`;
 }
 
-function isBrieflyPlayed(g) {
-  return (g.totalSeconds || 0) < 20 * 60;
+const BRIEF_SECONDS = 20 * 60;
+
+const STATUS_LABEL = { unplayed: '未开始', playing: '进行中', cleared: '已通关' };
+const CLEAR_LABEL = { local: '本地通关', external: '存档不在本地' };
+
+/**
+ * 库里的分类：已通关 > 手工未开始 > 时长不足 20 分钟 > 进行中
+ * 未开始的判定：状态就是「未开始」，或者累计不足 20 分钟
+ */
+function gameGroup(g) {
+  if (g.status === 'cleared') return 'cleared';
+  if (g.status === 'unplayed') return 'unstarted';
+  if ((g.totalSeconds || 0) < BRIEF_SECONDS) return 'unstarted';
+  return 'playing';
 }
 
 function renderLibrary() {
@@ -516,27 +528,37 @@ function renderLibrary() {
     </article>`;
   };
 
-  const main = list.filter((g) => !isBrieflyPlayed(g));
-  const brief = list.filter(isBrieflyPlayed);
+  const groups = { playing: [], unstarted: [], cleared: [] };
+  for (const g of list) groups[gameGroup(g)].push(g);
 
-  const sep = brief.length
-    ? `<div class="grid-sep"><span>还没怎么玩 · 少于 20 分钟</span><i></i><span class="grid-sep-count">${brief.length}</span></div>`
-    : '';
+  const block = (key, label) => {
+    if (!groups[key].length) return '';
+    const head = `<div class="grid-sep"><span>${label}</span><i></i><span class="grid-sep-count">${groups[key].length}</span></div>`;
+    return head + groups[key].map(cardHtml).join('');
+  };
 
-  el.grid.innerHTML = main.map(cardHtml).join('') + sep + brief.map(cardHtml).join('');
+  el.grid.innerHTML =
+    block('playing', '进行中') +
+    block('unstarted', '未开始 · 少于 20 分钟') +
+    block('cleared', '已通关');
 }
 
 /* ---------------- 沉浸布局 ---------------- */
 
 function stripGroups() {
-  const unplayed = state.games.filter((g) => !g.lastPlayedAt).sort((a, b) => a.name.localeCompare(b.name, 'zh'));
-  const played = state.games.filter((g) => g.lastPlayedAt).sort((a, b) => a.lastPlayedAt - b.lastPlayedAt);
-  return { unplayed, played };
+  const byName = (a, b) => a.name.localeCompare(b.name, 'zh');
+  // 已通关放最上面，进行中放最下面；进行中内部按时间正序，最近玩的贴在最底部
+  const cleared = state.games.filter((g) => gameGroup(g) === 'cleared')
+    .sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0));
+  const unstarted = state.games.filter((g) => gameGroup(g) === 'unstarted').sort(byName);
+  const playing = state.games.filter((g) => gameGroup(g) === 'playing')
+    .sort((a, b) => (a.lastPlayedAt || 0) - (b.lastPlayedAt || 0));
+  return { cleared, unstarted, playing };
 }
 
 function stripGames() {
-  const { unplayed, played } = stripGroups();
-  return [...unplayed, ...played];
+  const { cleared, unstarted, playing } = stripGroups();
+  return [...cleared, ...unstarted, ...playing];
 }
 
 function stripItem(g) {
@@ -550,14 +572,16 @@ function stripItem(g) {
 function renderStrip() {
   const prevActive = el.strip.querySelector('.strip-item.is-active');
   const prevId = prevActive ? prevActive.dataset.stripId : null;
-  const { unplayed, played } = stripGroups();
+  const { cleared, unstarted, playing } = stripGroups();
 
-  let html = unplayed.map(stripItem).join('');
-  if (played.length) {
-    html += '<div class="strip-sep"><span>玩过</span><i></i></div>';
-    html += played.map(stripItem).join('');
-  }
-  el.strip.innerHTML = html;
+  const block = (arr, label) => (arr.length
+    ? `<div class="strip-sep"><span>${label}</span><i></i></div>` + arr.map(stripItem).join('')
+    : '');
+
+  el.strip.innerHTML =
+    block(cleared, '已通关') +
+    block(unstarted, '未开始') +
+    block(playing, '进行中');
 
   if (prevId !== heroId) {
     const active = el.strip.querySelector('.strip-item.is-active');
@@ -1095,14 +1119,12 @@ function renderDetail() {
   const avg = counted.length ? counted.reduce((s, x) => s + x.seconds, 0) / counted.length : 0;
   const run = runtimeMap.get(g.id);
 
-  const statusText = run ? '计时中' : g.status === 'cleared' ? '已通关' : g.status === 'playing' ? '进行中' : '未开始';
   const playLabel = run ? '正在计时' : (g.totalSeconds || 0) >= 60 ? '继续游戏' : '开始游戏';
 
   const chips = [
     g.developer ? `<span class="chip">${esc(g.developer)}</span>` : '',
     g.released ? `<span class="chip">${esc(String(g.released).slice(0, 4))}</span>` : '',
     g.engine ? `<span class="chip">${esc(g.engine)}</span>` : '',
-    `<span class="chip chip-accent">${statusText}</span>`,
     `<span class="chip">${trackModeLabel(g.trackMode)}</span>`
   ].filter(Boolean).join('');
 
@@ -1144,6 +1166,18 @@ function renderDetail() {
           <h1>${esc(g.name)}</h1>
           <div class="hero-sub">${esc(g.originalName && g.originalName !== g.name ? g.originalName : '')}</div>
           <div class="chips">${chips}</div>
+          <div class="status-bar">
+            <div class="seg">
+              ${['unplayed', 'playing', 'cleared'].map((k) => `
+                <button class="seg-btn ${(g.status || 'unplayed') === k ? 'is-on' : ''}" data-status="${k}">${STATUS_LABEL[k]}</button>`).join('')}
+            </div>
+            ${g.status === 'cleared' ? `
+              <span class="seg-label">存档</span>
+              <div class="seg seg-sm">
+                ${['local', 'external'].map((k) => `
+                  <button class="seg-btn ${(g.clearSave || 'local') === k ? 'is-on' : ''}" data-clear="${k}">${CLEAR_LABEL[k]}</button>`).join('')}
+              </div>` : ''}
+          </div>
           <div class="play-row">
             ${run
               ? `<button class="btn-play" data-act="stop">${ICON.stop} 停止计时</button>
@@ -1214,6 +1248,17 @@ function trackModeLabel(mode) {
 }
 
 async function onDetailClick(e) {
+  const stBtn = e.target.closest('[data-status]');
+  if (stBtn && openGameId) {
+    await window.api.updateGame(openGameId, { status: stBtn.dataset.status });
+    return;
+  }
+  const csBtn = e.target.closest('[data-clear]');
+  if (csBtn && openGameId) {
+    await window.api.updateGame(openGameId, { clearSave: csBtn.dataset.clear });
+    return;
+  }
+
   const shotEl = e.target.closest('[data-shot-open]');
   if (shotEl) {
     const file = shotEl.dataset.shotOpen;
@@ -1740,21 +1785,12 @@ function openEditModal(g) {
       <div class="form-label">初始等待（毫秒）</div>
       <input class="input" id="eDelay" type="number" min="0" max="60000" step="1000" value="${g.initialDelay || 0}">
     </div>
-    <div class="form-row">
-      <div class="form-label">状态</div>
-      <select class="select select-wide" id="eStatus">
-        <option value="unplayed">未开始</option>
-        <option value="playing">进行中</option>
-        <option value="cleared">已通关</option>
-      </select>
-    </div>
     <div class="modal-foot">
       <button class="btn" data-close>取消</button>
       <button class="btn btn-primary" id="eSave">保存</button>
     </div>`);
 
   $('#eMode').value = g.trackMode || 'folder';
-  $('#eStatus').value = g.status || 'unplayed';
   $('#eMode').addEventListener('change', (e) => {
     $('#eNameRow').style.display = e.target.value === 'name' ? '' : 'none';
   });
@@ -1774,8 +1810,7 @@ function openEditModal(g) {
       workDir: exePath.replace(/[\\/][^\\/]+$/, ''),
       trackMode: mode,
       trackValue: $('#eModeValue').value.trim(),
-      initialDelay: Math.max(0, Math.min(60000, Number($('#eDelay').value) || 0)),
-      status: $('#eStatus').value
+      initialDelay: Math.max(0, Math.min(60000, Number($('#eDelay').value) || 0))
     });
     if (!res.ok) return toast(res.error, 'error');
     closeModal();
@@ -1925,6 +1960,7 @@ window.__shotView = (v) => {
     if (g) openDetail(g.id);
     return;
   }
+
 
 
 

@@ -85,7 +85,11 @@ class Store {
       return {
         version: 1,
         settings: settingsWithDefaults(parsed.settings),
-        games: Array.isArray(parsed.games) ? parsed.games : [],
+        games: (Array.isArray(parsed.games) ? parsed.games : []).map((g) => ({
+          status: 'unplayed',
+          clearSave: 'local',
+          ...g
+        })),
         sessions: Array.isArray(parsed.sessions) ? parsed.sessions : []
       };
     } catch (err) {
@@ -204,6 +208,7 @@ class Store {
       firstPlayedAt: null,
       lastPlayedAt: null,
       status: 'unplayed',
+      clearSave: 'local',
       notes: '',
       tags: [],
       addedAt: now,
@@ -220,7 +225,7 @@ class Store {
     const allowed = [
       'name', 'originalName', 'exePath', 'workDir', 'engine', 'cover',
       'developer', 'released', 'vndbId', 'trackMode', 'trackValue',
-      'initialDelay', 'status', 'notes', 'tags', 'coverVersion',
+      'initialDelay', 'status', 'clearSave', 'notes', 'tags', 'coverVersion',
       'totalSeconds', 'launchCount', 'firstPlayedAt', 'lastPlayedAt'
     ];
     for (const key of allowed) {
@@ -287,7 +292,7 @@ class Store {
         game.launchCount = (game.launchCount || 0) + 1;
         game.lastPlayedAt = end;
         if (!game.firstPlayedAt) game.firstPlayedAt = s.startedAt;
-        if (game.status === 'unplayed' && seconds > 0) game.status = 'playing';
+        if (game.status !== 'cleared' && (game.totalSeconds || 0) >= 1200) game.status = 'playing';
       }
       recovered.push(s);
     }

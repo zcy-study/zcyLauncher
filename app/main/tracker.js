@@ -284,12 +284,17 @@ class Tracker extends EventEmitter {
     if (counted) {
       const game = this.store.findGame(s.gameId);
       if (game) {
+        const nextTotal = (game.totalSeconds || 0) + seconds;
+        // 满 20 分钟才自动转「进行中」；已通关的不回退
+        const nextStatus = game.status === 'cleared'
+          ? 'cleared'
+          : (nextTotal >= 1200 ? 'playing' : (game.status || 'unplayed'));
         this.store.updateGame(game.id, {
-          totalSeconds: (game.totalSeconds || 0) + seconds,
+          totalSeconds: nextTotal,
           launchCount: (game.launchCount || 0) + 1,
           firstPlayedAt: game.firstPlayedAt || s.startedAt,
           lastPlayedAt: endedAt,
-          status: game.status === 'unplayed' ? 'playing' : game.status
+          status: nextStatus
         });
       }
     }
