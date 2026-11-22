@@ -1881,7 +1881,7 @@ body.privacy .hero-cover:hover img { filter: none; }
 }
 
 /* 状态切换（详情页） */
-.status-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0 2px; }
+.status-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0 16px; }
 
 .seg {
   display: inline-flex;
