@@ -125,7 +125,10 @@ function createWindow() {
     if (app.isQuitting) return;
     event.preventDefault();
     mainWindow.hide();
+    showTrayNotice();
   });
+
+  mainWindow.on('minimize', () => showTrayNotice());
 
   mainWindow.on('closed', () => { mainWindow = null; });
 }
@@ -412,9 +415,85 @@ function restoreWindowState(pending) {
   setTimeout(() => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     if (pending.wasHidden) mainWindow.hide();
-    else if (pending.wasMinimized) mainWindow.minimize();
+    else if (pending.wasMinimized) {
+      suppressNoticeUntil = Date.now() + 1500;
+      mainWindow.minimize();
+    }
   }, 260);
 }
+
+/* ---------------- 托盘提示 ---------------- */
+
+let noticeWin = null;
+let noticeTimer = null;
+let lastNoticeAt = 0;
+let suppressNoticeUntil = 0;
+
+function closeTrayNotice() {
+  if (noticeTimer) { clearTimeout(noticeTimer); noticeTimer = null; }
+  if (noticeWin && !noticeWin.isDestroyed()) noticeWin.close();
+  noticeWin = null;
+}
+
+function showTrayNotice() {
+  if (app.isQuitting) return;
+  const now = Date.now();
+  if (now < suppressNoticeUntil) return;
+  if (now - lastNoticeAt < 1500) return;
+  lastNoticeAt = now;
+
+  closeTrayNotice();
+
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()) || screen.getPrimaryDisplay();
+  const area = display.workArea;
+  const w = 348;
+  const h = 104;
+
+  noticeWin = new BrowserWindow({
+    width: w,
+    height: h,
+    x: Math.round(area.x + area.width - w - 8),
+    y: Math.round(area.y + area.height - h - 8),
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    focusable: false,
+    show: false,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: path.join(appPath, 'preload-notify.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  noticeWin.setAlwaysOnTop(true, 'screen-saver');
+  noticeWin.loadFile(path.join(appPath, 'renderer', 'notify.html'));
+  noticeWin.once('ready-to-show', () => {
+    if (noticeWin && !noticeWin.isDestroyed()) noticeWin.showInactive();
+  });
+  noticeWin.on('closed', () => { noticeWin = null; });
+
+  // 渲染层 5 秒后自己关；这里多留一点兜底，防止页面卡住不关
+  noticeTimer = setTimeout(() => closeTrayNotice(), 6500);
+}
+
+ipcMain.on('notice:close', () => closeTrayNotice());
+ipcMain.on('notice:restore', () => {
+  closeTrayNotice();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
 
 async function captureScreen() {
   // 跟着鼠标走：侧键按下时光标在哪个屏就抓哪个屏，单屏就是主屏
@@ -679,6 +758,7 @@ handle('settings:update', (patch) => {
 
 handle('window:minimize', () => {
   if (mainWindow) mainWindow.minimize();
+  showTrayNotice();
   return { ok: true };
 });
 
