@@ -1370,7 +1370,8 @@ function renderStats() {
     else if (i > 0) break;
   }
 
-  const played = state.games.filter((g) => (g.totalSeconds || 0) > 0).length;
+  // 已通关的即使没记到时长，也算玩过
+  const played = state.games.filter((g) => (g.totalSeconds || 0) > 0 || g.status === 'cleared').length;
 
   $('#statMetrics').innerHTML = `
     <div class="metric"><div class="metric-label">总时长</div><div class="metric-value">${(all / 3600).toFixed(1)}<small>小时</small></div></div>
