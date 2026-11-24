@@ -1519,6 +1519,7 @@ function renderSettings() {
   $('#dataPath').textContent = state.dataDir || '—';
   $('#appVersion').textContent = state.version || '1.0.0';
   $('#setBlur').checked = !!state.settings.blurCovers;
+  $('#setTrayNotice').checked = state.settings.trayNotice !== false;
   $('#setShot').checked = !!state.settings.screenshotEnabled;
   $('#setShotMouse').value = state.settings.screenshotMouse || 'x1';
   if (document.activeElement !== $('#setShotKey')) {
@@ -1553,6 +1554,9 @@ function renderSettings() {
       window.api.saveSettings({ closeClockOnExit: e.target.checked });
     });
 
+    $('#setTrayNotice').addEventListener('change', (e) => {
+      window.api.saveSettings({ trayNotice: e.target.checked });
+    });
     $('#setShot').addEventListener('change', (e) => {
       window.api.saveSettings({ screenshotEnabled: e.target.checked });
     });

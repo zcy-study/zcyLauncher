@@ -437,6 +437,7 @@ function closeTrayNotice() {
 
 function showTrayNotice() {
   if (app.isQuitting) return;
+  if (store.settings.trayNotice === false) return;
   const now = Date.now();
   if (now < suppressNoticeUntil) return;
   if (now - lastNoticeAt < 1500) return;

@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   screenshotEnabled: false,
   screenshotKey: 'F9',
   screenshotMouse: 'x1',
+  trayNotice: true,
   lockEnabled: false,
   lockPasswords: [
     { id: 'p_builtin', password: '0d000721', hint: '宁宁欧那尼', fixed: true }
