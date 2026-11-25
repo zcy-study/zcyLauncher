@@ -1818,6 +1818,7 @@ function renderSettings() {
   $('#setLock').checked = !!state.settings.lockEnabled;
   renderPwdManager();
   $('#setLaunchClock').checked = !!state.settings.launchClock;
+  $('#setMinOnLaunch').checked = !!state.settings.minimizeOnLaunch;
   $('#setCloseClock').checked = state.settings.closeClockOnExit !== false;
   $('#clockPathText').textContent = state.settings.clockPath || '未设置';
   $('#clockPathText').title = state.settings.clockPath || '';
@@ -1837,6 +1838,9 @@ function renderSettings() {
       window.api.saveSettings({ blurCovers: e.target.checked });
     });
     $('#btnOpenData').addEventListener('click', () => window.api.openData());
+    $('#setMinOnLaunch').addEventListener('change', (e) => {
+      window.api.saveSettings({ minimizeOnLaunch: e.target.checked });
+    });
     $('#setLaunchClock').addEventListener('change', (e) => {
       window.api.saveSettings({ launchClock: e.target.checked });
     });

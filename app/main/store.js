@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const DEFAULT_SETTINGS = {
   accent: 'gold',
   layout: 'grid',
+  minimizeOnLaunch: false,
   launchClock: false,
   closeClockOnExit: true,
   clockPath: 'D:\\dsFile\\Clock.vbs',
