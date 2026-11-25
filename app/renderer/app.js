@@ -1556,22 +1556,17 @@ function renderHeatmap() {
     }
   }
 
-  const strip = list.length <= 7;
-  const rowsLayout = list.length <= 42;
-  const cellSize = heatMode === 'cover' ? 16 : (strip ? 20 : (rowsLayout ? 16 : 12));
-  grid.className = 'heatmap '
-    + (rowsLayout ? 'is-rows' : 'is-cols')
-    + (strip ? ' is-strip' : '')
-    + (heatMode === 'cover' ? ' is-cover' : '');
+  // 天数越少格子越大，短区间也能看得清
+  const dayCount = list.length;
+  const cell = heatMode === 'cover'
+    ? (dayCount <= 7 ? 48 : dayCount <= 31 ? 34 : 30)
+    : (dayCount <= 7 ? 40 : dayCount <= 31 ? 26 : 20);
+  const blockW = 7 * cell + 6 * 4;
+  grid.className = 'heatmap' + (heatMode === 'cover' ? ' is-cover' : '');
+  grid.style.setProperty('--hcell', cell + 'px');
+  grid.style.setProperty('--blockw', blockW + 'px');
 
-  // 非一周视图：往前后补齐，凑成完整的周，格子排成矩形
-  const padStart = strip ? 0 : (list[0].getDay() + 6) % 7; // 周一为一周第一天
-  const slots = strip ? 7 : Math.ceil((padStart + list.length) / 7) * 7;
-
-  const parts = [];
-  for (let i = 0; i < padStart; i++) parts.push('<i class="is-blank"></i>');
-
-  for (const d of list) {
+  const cellHtml = (d) => {
     const k = dayKey(d.getTime());
     const rec = days.get(k);
     const sec = rec ? rec.sec : 0;
@@ -1579,51 +1574,54 @@ function renderHeatmap() {
     const game = top ? state.games.find((g) => g.id === top.id) : null;
     const dateText = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
     const meta = `data-k="${dateText}" data-sec="${sec}" data-game="${esc(game ? game.name : '')}" data-gsec="${top ? top.sec : 0}"`;
+    if (heatMode === 'cover' && game && game.coverUrl) {
+      return `<i ${meta}><img src="${esc(game.coverUrl)}" alt="" loading="lazy"></i>`;
+    }
+    return `<i class="l${levelOf(sec)}" ${meta}></i>`;
+  };
 
-    if (heatMode === 'cover') {
-      if (game && game.coverUrl) {
-        parts.push(`<i ${meta}><img src="${esc(game.coverUrl)}" alt="" loading="lazy"></i>`);
-      } else {
-        parts.push(`<i class="l${levelOf(sec)}" ${meta}></i>`);
-      }
+  // 按自然月切块
+  const blocks = [];
+  let cur = new Date(start);
+  while (cur <= end) {
+    const y = cur.getFullYear();
+    const m = cur.getMonth();
+    const monthEnd = new Date(y, m + 1, 0);
+    const last = monthEnd > end ? end : monthEnd;
+    const list2 = [];
+    for (let d = new Date(cur); d <= last; d.setDate(d.getDate() + 1)) list2.push(new Date(d));
+    blocks.push({ y, m, days: list2 });
+    cur = new Date(y, m + 1, 1);
+  }
+
+  const blank = '<i class="is-blank"></i>';
+  const weekHead = ['一', '二', '三', '四', '五', '六', '日'];
+
+  grid.innerHTML = blocks.map((b, i) => {
+    // 一周以内不按日历对齐，直接排成一行
+    const solo = blocks.length === 1 && b.days.length <= 7;
+    const offset = solo ? 0 : (b.days[0].getDay() + 6) % 7;
+    const total = solo ? 7 : Math.ceil((offset + b.days.length) / 7) * 7;
+
+    const cells = [];
+    for (let k = 0; k < offset; k++) cells.push(blank);
+    for (const d of b.days) cells.push(cellHtml(d));
+    for (let k = offset + b.days.length; k < total; k++) cells.push(blank);
+
+    const showYear = i === 0 || b.m === 0;
+    let label;
+    if (solo) {
+      const a = b.days[0];
+      const z = b.days[b.days.length - 1];
+      label = `<b>${a.getFullYear()} 年</b> ${a.getMonth() + 1} 月 ${a.getDate()} 日 – ${z.getDate()} 日`;
     } else {
-      parts.push(`<i class="l${levelOf(sec)}" ${meta}></i>`);
+      label = showYear ? `<b>${b.y} 年</b> ${b.m + 1} 月` : `${b.m + 1} 月`;
     }
-  }
-  for (let i = padStart + list.length; i < slots; i++) parts.push('<i class="is-blank"></i>');
-  grid.innerHTML = parts.join('');
-
-  const weekTop = $('#heatWeekTop');
-  if (rowsLayout) {
-    months.classList.add('hidden');
-    wd.classList.add('hidden');
-    if (weekTop) {
-      weekTop.innerHTML = (strip
-        ? list.map((d) => `<span>${'日一二三四五六'[d.getDay()]}</span>`)
-        : ['一', '二', '三', '四', '五', '六', '日'].map((t) => `<span>${t}</span>`)).join('');
-      weekTop.style.gridTemplateColumns = `repeat(7, ${cellSize}px)`;
-      weekTop.classList.remove('hidden');
-    }
-  } else {
-    if (weekTop) weekTop.classList.add('hidden');
-    const weeks = Math.ceil((padStart + list.length) / 7);
-    const marks = [];
-    let lastMonth = -1;
-    list.forEach((d, idx) => {
-      const m = d.getMonth();
-      if (m === lastMonth) return;
-      lastMonth = m;
-      const col = Math.floor((padStart + idx) / 7) + 1;
-      if (idx === 0 || col <= weeks - 1) {
-        marks.push(`<span style="grid-column:${col}">${m + 1} 月</span>`);
-      }
-    });
-    months.innerHTML = marks.join('');
-    months.style.gridTemplateColumns = `repeat(${weeks}, ${cellSize}px)`;
-    months.classList.toggle('hidden', !marks.length);
-    wd.innerHTML = ['一', '', '三', '', '五', '', ''].map((t) => `<span>${t}</span>`).join('');
-    wd.classList.remove('hidden');
-  }
+    return `<div class="heat-block">
+      <div class="hb-label">${label}</div>
+      <div class="hb-grid">${cells.join('')}</div>
+    </div>`;
+  }).join('');
 
   if (legend) {
     legend.innerHTML = heatMode === 'cover'
