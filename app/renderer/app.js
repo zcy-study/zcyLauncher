@@ -1475,8 +1475,12 @@ function heatWindow() {
   }
 
   const cfg = HEAT_RANGES.find((r) => r.id === heatRange) || HEAT_RANGES[4];
-  const start = new Date(today);
+  let start = new Date(today);
   start.setDate(start.getDate() - (cfg.days - 1));
+  // 三个月以上的范围：从下个月 1 号算起，避免最前面出现一块只有几天的月份
+  if (cfg.days >= 90 && start.getDate() !== 1) {
+    start = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+  }
   return { start, end: today };
 }
 
@@ -1559,8 +1563,8 @@ function renderHeatmap() {
   // 天数越少格子越大，短区间也能看得清
   const dayCount = list.length;
   const cell = heatMode === 'cover'
-    ? (dayCount <= 7 ? 48 : dayCount <= 31 ? 34 : 30)
-    : (dayCount <= 7 ? 40 : dayCount <= 31 ? 26 : 20);
+    ? (dayCount <= 7 ? 48 : dayCount <= 31 ? 34 : 38)
+    : (dayCount <= 7 ? 40 : dayCount <= 31 ? 26 : 34);
   const blockW = 7 * cell + 6 * 4;
   grid.className = 'heatmap' + (heatMode === 'cover' ? ' is-cover' : '');
   grid.style.setProperty('--hcell', cell + 'px');
