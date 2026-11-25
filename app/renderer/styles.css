@@ -1318,9 +1318,11 @@ body.detail-open .topbar { -webkit-app-region: no-drag; }
 .switch input:checked::after { transform: translateX(14px); background: var(--accent-2); }
 .switch-stacked { display: flex; margin-top: 9px; }
 
-/* 只作用于网格布局的封面卡片，沉浸模式和详情页的封面不受影响 */
+/* 网格卡片 + 详情页大封面都会模糊，鼠标移上去才清晰 */
 body.privacy .card-cover { filter: blur(13px) saturate(0.85); transform: scale(1.06); }
 body.privacy .card:hover .card-cover { filter: none; transform: scale(1.035); }
+body.privacy .hero-cover img { filter: blur(12px); }
+body.privacy .hero-cover:hover img { filter: none; }
 
 .clock-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 
