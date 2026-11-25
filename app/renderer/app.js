@@ -283,6 +283,13 @@ function bindEvents() {
       $$('#heatMode .seg-btn').forEach((b) => b.classList.toggle('is-on', b === btn));
       renderHeatmap();
     });
+    $('#heatLayout').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-hlayout]');
+      if (!btn) return;
+      heatLayout = btn.dataset.hlayout;
+      $$('#heatLayout .seg-btn').forEach((b) => b.classList.toggle('is-on', b === btn));
+      renderHeatmap();
+    });
     $('#heatRange').addEventListener('change', (e) => {
       heatRange = e.target.value;
       renderHeatmap();
@@ -1443,6 +1450,7 @@ const HEAT_RANGES = [
 let heatRange = '365d';
 let heatYear = 'all';
 let heatMode = 'time';
+let heatLayout = 'month';
 
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
@@ -1519,6 +1527,33 @@ function levelOf(sec) {
   return 0;
 }
 
+function compactHeatHtml(list, cellHtml, cell) {
+  const offset = (list[0].getDay() + 6) % 7;
+  const total = Math.ceil((offset + list.length) / 7) * 7;
+  const weeks = total / 7;
+  const cells = [];
+  for (let i = 0; i < offset; i++) cells.push('<i class="is-blank"></i>');
+  for (const d of list) cells.push(cellHtml(d));
+  for (let i = offset + list.length; i < total; i++) cells.push('<i class="is-blank"></i>');
+
+  const marks = [];
+  let lastMonth = -1;
+  list.forEach((d, idx) => {
+    const m = d.getMonth();
+    if (m === lastMonth) return;
+    lastMonth = m;
+    const col = Math.floor((offset + idx) / 7) + 1;
+    if (idx === 0 || col <= weeks - 1) marks.push(`<span style="grid-column:${col}">${m + 1} 月</span>`);
+  });
+
+  const wd = ['一', '', '三', '', '五', '', ''].map((t) => `<span>${t}</span>`).join('');
+  return `<div class="hc-wd">${wd}</div>
+    <div class="hc-col">
+      <div class="hc-months" style="grid-template-columns: repeat(${weeks}, ${cell}px)">${marks.join('')}</div>
+      <div class="hc-grid">${cells.join('')}</div>
+    </div>`;
+}
+
 function renderHeatmap() {
   const grid = $('#heatmap');
   if (!grid) return;
@@ -1560,16 +1595,6 @@ function renderHeatmap() {
     }
   }
 
-  // 天数越少格子越大，短区间也能看得清
-  const dayCount = list.length;
-  const cell = heatMode === 'cover'
-    ? (dayCount <= 7 ? 48 : dayCount <= 31 ? 34 : 38)
-    : (dayCount <= 7 ? 40 : dayCount <= 31 ? 26 : 34);
-  const blockW = 7 * cell + 6 * 4;
-  grid.className = 'heatmap' + (heatMode === 'cover' ? ' is-cover' : '');
-  grid.style.setProperty('--hcell', cell + 'px');
-  grid.style.setProperty('--blockw', blockW + 'px');
-
   const cellHtml = (d) => {
     const k = dayKey(d.getTime());
     const rec = days.get(k);
@@ -1583,49 +1608,63 @@ function renderHeatmap() {
     }
     return `<i class="l${levelOf(sec)}" ${meta}></i>`;
   };
+  if (heatLayout === 'compact') {
+    const ccell = heatMode === 'cover' ? 16 : 12;
+    grid.className = 'heatmap is-compact' + (heatMode === 'cover' ? ' is-cover' : '');
+    grid.style.setProperty('--hcell', ccell + 'px');
+    grid.innerHTML = compactHeatHtml(list, cellHtml, ccell);
+  } else {
+    const dayCount = list.length;
+    const cell = heatMode === 'cover'
+      ? (dayCount <= 7 ? 48 : dayCount <= 31 ? 34 : 38)
+      : (dayCount <= 7 ? 40 : dayCount <= 31 ? 26 : 34);
+    const blockW = 7 * cell + 6 * 4;
+    grid.className = 'heatmap' + (heatMode === 'cover' ? ' is-cover' : '');
+    grid.style.setProperty('--hcell', cell + 'px');
+    grid.style.setProperty('--blockw', blockW + 'px');
 
-  // 按自然月切块
-  const blocks = [];
-  let cur = new Date(start);
-  while (cur <= end) {
-    const y = cur.getFullYear();
-    const m = cur.getMonth();
-    const monthEnd = new Date(y, m + 1, 0);
-    const last = monthEnd > end ? end : monthEnd;
-    const list2 = [];
-    for (let d = new Date(cur); d <= last; d.setDate(d.getDate() + 1)) list2.push(new Date(d));
-    blocks.push({ y, m, days: list2 });
-    cur = new Date(y, m + 1, 1);
-  }
-
-  const blank = '<i class="is-blank"></i>';
-  const weekHead = ['一', '二', '三', '四', '五', '六', '日'];
-
-  grid.innerHTML = blocks.map((b, i) => {
-    // 一周以内不按日历对齐，直接排成一行
-    const solo = blocks.length === 1 && b.days.length <= 7;
-    const offset = solo ? 0 : (b.days[0].getDay() + 6) % 7;
-    const total = solo ? 7 : Math.ceil((offset + b.days.length) / 7) * 7;
-
-    const cells = [];
-    for (let k = 0; k < offset; k++) cells.push(blank);
-    for (const d of b.days) cells.push(cellHtml(d));
-    for (let k = offset + b.days.length; k < total; k++) cells.push(blank);
-
-    const showYear = i === 0 || b.m === 0;
-    let label;
-    if (solo) {
-      const a = b.days[0];
-      const z = b.days[b.days.length - 1];
-      label = `<b>${a.getFullYear()} 年</b> ${a.getMonth() + 1} 月 ${a.getDate()} 日 – ${z.getDate()} 日`;
-    } else {
-      label = showYear ? `<b>${b.y} 年</b> ${b.m + 1} 月` : `${b.m + 1} 月`;
+    // 按自然月切块
+    const blocks = [];
+    let cur = new Date(start);
+    while (cur <= end) {
+      const y = cur.getFullYear();
+      const m = cur.getMonth();
+      const monthEnd = new Date(y, m + 1, 0);
+      const last = monthEnd > end ? end : monthEnd;
+      const list2 = [];
+      for (let d = new Date(cur); d <= last; d.setDate(d.getDate() + 1)) list2.push(new Date(d));
+      blocks.push({ y, m, days: list2 });
+      cur = new Date(y, m + 1, 1);
     }
-    return `<div class="heat-block">
-      <div class="hb-label">${label}</div>
-      <div class="hb-grid">${cells.join('')}</div>
-    </div>`;
-  }).join('');
+
+    const blank = '<i class="is-blank"></i>';
+
+    grid.innerHTML = blocks.map((b, i) => {
+      // 一周以内不按日历对齐，直接排成一行
+      const solo = blocks.length === 1 && b.days.length <= 7;
+      const offset = solo ? 0 : (b.days[0].getDay() + 6) % 7;
+      const total = solo ? 7 : Math.ceil((offset + b.days.length) / 7) * 7;
+
+      const cells = [];
+      for (let k = 0; k < offset; k++) cells.push(blank);
+      for (const d of b.days) cells.push(cellHtml(d));
+      for (let k = offset + b.days.length; k < total; k++) cells.push(blank);
+
+      const showYear = i === 0 || b.m === 0;
+      let label;
+      if (solo) {
+        const a = b.days[0];
+        const z = b.days[b.days.length - 1];
+        label = `<b>${a.getFullYear()} 年</b> ${a.getMonth() + 1} 月 ${a.getDate()} 日 – ${z.getDate()} 日`;
+      } else {
+        label = showYear ? `<b>${b.y} 年</b> ${b.m + 1} 月` : `${b.m + 1} 月`;
+      }
+      return `<div class="heat-block">
+        <div class="hb-label">${label}</div>
+        <div class="hb-grid">${cells.join('')}</div>
+      </div>`;
+    }).join('');
+  }
 
   if (legend) {
     legend.innerHTML = heatMode === 'cover'
