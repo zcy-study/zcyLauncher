@@ -683,9 +683,11 @@ handle('game:launch', (id) => {
     toast('已启动：' + game.name);
     if (store.settings.launchClock) launchClock();
     if (store.settings.minimizeOnLaunch && mainWindow) {
-      // 直接收进托盘，别让启动器挡着游戏；这次不弹托盘提示
-      suppressNoticeUntil = Date.now() + 2000;
+      // 收进托盘，别让启动器挡着游戏；要不要提示由「启动之后」里的子开关决定
+      const wantNotice = !!store.settings.minimizeOnLaunchNotice;
+      if (!wantNotice) suppressNoticeUntil = Date.now() + 2000;
       mainWindow.hide();
+      if (wantNotice) showTrayNotice();
     }
   } else {
     toast(res.error, 'error');

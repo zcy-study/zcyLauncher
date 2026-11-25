@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS = {
   accent: 'gold',
   layout: 'grid',
   minimizeOnLaunch: false,
+  minimizeOnLaunchNotice: false,
   launchClock: false,
   closeClockOnExit: true,
   clockPath: 'D:\\dsFile\\Clock.vbs',

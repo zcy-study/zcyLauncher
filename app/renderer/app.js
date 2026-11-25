@@ -1819,6 +1819,9 @@ function renderSettings() {
   renderPwdManager();
   $('#setLaunchClock').checked = !!state.settings.launchClock;
   $('#setMinOnLaunch').checked = !!state.settings.minimizeOnLaunch;
+  $('#setMinNotice').checked = !!state.settings.minimizeOnLaunchNotice;
+  $('#setMinNotice').disabled = !state.settings.minimizeOnLaunch;
+  $('#setMinNotice').closest('.switch').classList.toggle('is-disabled', !state.settings.minimizeOnLaunch);
   $('#setCloseClock').checked = state.settings.closeClockOnExit !== false;
   $('#clockPathText').textContent = state.settings.clockPath || '未设置';
   $('#clockPathText').title = state.settings.clockPath || '';
@@ -1839,7 +1842,13 @@ function renderSettings() {
     });
     $('#btnOpenData').addEventListener('click', () => window.api.openData());
     $('#setMinOnLaunch').addEventListener('change', (e) => {
-      window.api.saveSettings({ minimizeOnLaunch: e.target.checked });
+      const on = e.target.checked;
+      window.api.saveSettings({ minimizeOnLaunch: on });
+      $('#setMinNotice').disabled = !on;
+      $('#setMinNotice').closest('.switch').classList.toggle('is-disabled', !on);
+    });
+    $('#setMinNotice').addEventListener('change', (e) => {
+      window.api.saveSettings({ minimizeOnLaunchNotice: e.target.checked });
     });
     $('#setLaunchClock').addEventListener('change', (e) => {
       window.api.saveSettings({ launchClock: e.target.checked });

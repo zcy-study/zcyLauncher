@@ -2040,3 +2040,7 @@ body.privacy .hero-cover:hover img { filter: none; }
   grid-auto-columns: var(--hcell, 12px);
   gap: 3px;
 }
+
+/* 从属开关：父项关闭时整行变淡 */
+.switch.is-disabled { opacity: 0.42; }
+.switch.is-disabled input { cursor: default; }
