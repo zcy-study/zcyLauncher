@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS = {
   layout: 'grid',
   minimizeOnLaunch: false,
   minimizeOnLaunchNotice: false,
+  showOnGameExit: false,
   launchClock: false,
   closeClockOnExit: true,
   clockPath: 'D:\\dsFile\\Clock.vbs',

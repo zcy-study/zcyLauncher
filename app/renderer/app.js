@@ -1820,6 +1820,7 @@ function renderSettings() {
   $('#setLaunchClock').checked = !!state.settings.launchClock;
   $('#setMinOnLaunch').checked = !!state.settings.minimizeOnLaunch;
   $('#setMinNotice').checked = !!state.settings.minimizeOnLaunchNotice;
+  $('#setShowOnExit').checked = !!state.settings.showOnGameExit;
   $('#setMinNotice').disabled = !state.settings.minimizeOnLaunch;
   $('#setMinNotice').closest('.switch').classList.toggle('is-disabled', !state.settings.minimizeOnLaunch);
   $('#setCloseClock').checked = state.settings.closeClockOnExit !== false;
@@ -1849,6 +1850,9 @@ function renderSettings() {
     });
     $('#setMinNotice').addEventListener('change', (e) => {
       window.api.saveSettings({ minimizeOnLaunchNotice: e.target.checked });
+    });
+    $('#setShowOnExit').addEventListener('change', (e) => {
+      window.api.saveSettings({ showOnGameExit: e.target.checked });
     });
     $('#setLaunchClock').addEventListener('change', (e) => {
       window.api.saveSettings({ launchClock: e.target.checked });

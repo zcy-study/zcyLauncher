@@ -795,8 +795,16 @@ tracker.on('ended', (info) => {
     toast('本次不足 10 秒，未计入统计');
   }
   // 进程真的没了才关时钟；手动停止或启动失败不动它
-  if ((info.reason === 'exited' || info.reason === 'crash') && store.settings.closeClockOnExit) {
+  const reallyOver = info.reason === 'exited' || info.reason === 'crash';
+  if (reallyOver && store.settings.closeClockOnExit) {
     closeClock();
+  }
+  // 游戏结束后把启动器叫回来（和「启动后收进托盘」配套）
+  if (reallyOver && store.settings.showOnGameExit && mainWindow && !mainWindow.isDestroyed()) {
+    suppressNoticeUntil = Date.now() + 1500;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    if (!mainWindow.isVisible()) mainWindow.show();
+    mainWindow.focus();
   }
   pushState();
 });
