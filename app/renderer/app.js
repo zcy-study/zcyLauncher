@@ -274,6 +274,26 @@ function bindEvents() {
   $('#winMin').addEventListener('click', () => window.api.winMinimize());  $('#winMax').addEventListener('click', () => window.api.winToggleMax());
   $('#winClose').addEventListener('click', () => window.api.winClose());
 
+  // 游玩热力：时间范围 / 年份 / 显示模式
+  if ($('#heatMode')) {
+    $('#heatMode').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-hmode]');
+      if (!btn) return;
+      heatMode = btn.dataset.hmode;
+      $$('#heatMode .seg-btn').forEach((b) => b.classList.toggle('is-on', b === btn));
+      renderHeatmap();
+    });
+    $('#heatRange').addEventListener('change', (e) => {
+      heatRange = e.target.value;
+      renderHeatmap();
+    });
+    $('#heatYear').addEventListener('change', (e) => {
+      heatYear = e.target.value;
+      renderHeatmap();
+    });
+    bindHeatTooltip();
+  }
+
   // 截图页
   $('#view-shots').addEventListener('click', (e) => {
     if (e.target.closest('[data-shot-back]')) {
@@ -1379,7 +1399,7 @@ function renderStats() {
     <div class="metric"><div class="metric-label">连续天数</div><div class="metric-value">${streak}<small>天</small></div></div>
     <div class="metric"><div class="metric-label">已玩作品</div><div class="metric-value">${played}<small>/ ${state.games.length}</small></div></div>`;
 
-  renderHeatmap(totals);
+  renderHeatmap();
 
   const rank = state.games.filter((g) => (g.totalSeconds || 0) > 0)
     .sort((a, b) => b.totalSeconds - a.totalSeconds).slice(0, 6);
@@ -1409,27 +1429,251 @@ function renderStats() {
     : '<div class="empty-line">还没有记录。</div>';
 }
 
-function renderHeatmap(totals) {
-  const cells = [];
-  const today = new Date();
-  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const start = new Date(end);
-  start.setDate(start.getDate() - (52 * 7 - 1));
-  const offset = start.getDay();
+/* ---------------- 游玩热力 ---------------- */
 
-  for (let i = 0; i < offset; i++) cells.push('<i style="visibility:hidden"></i>');
+const HEAT_RANGES = [
+  { id: '7d', label: '最近一周', days: 7 },
+  { id: '30d', label: '最近一月', days: 30 },
+  { id: '90d', label: '最近三月', days: 90 },
+  { id: '180d', label: '最近六月', days: 180 },
+  { id: '365d', label: '最近一年', days: 365 },
+  { id: 'all', label: '全部时间', days: 0 }
+];
 
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const v = totals.get(dayKey(d.getTime())) || 0;
-    let lv = 0;
-    if (v >= 10800) lv = 4;
-    else if (v >= 5400) lv = 3;
-    else if (v >= 1800) lv = 2;
-    else if (v >= 60) lv = 1;
-    const title = `${d.getMonth() + 1} 月 ${d.getDate()} 日 · ${v ? fmtClockShort(v) : '没有游玩'}`;
-    cells.push(`<i class="l${lv}" title="${title}"></i>`);
+let heatRange = '365d';
+let heatYear = 'all';
+let heatMode = 'time';
+
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+function hourText(sec) {
+  const v = Math.max(0, Math.round(sec || 0));
+  if (v < 60) return '0 分钟';
+  if (v < 3600) return Math.round(v / 60) + ' 分钟';
+  return (v / 3600).toFixed(1) + ' 小时';
+}
+
+function heatWindow() {
+  const today = startOfDay(new Date());
+
+  if (heatRange === 'all') {
+    if (heatYear !== 'all') {
+      const y = Number(heatYear);
+      const start = new Date(y, 0, 1);
+      let end = new Date(y, 11, 31);
+      if (end > today) end = today;
+      return { start, end };
+    }
+    let min = null;
+    for (const s of state.sessions || []) {
+      if (!s.counted) continue;
+      const d = startOfDay(new Date(s.startedAt));
+      if (!min || d < min) min = d;
+    }
+    if (!min || min > today) min = new Date(today.getFullYear(), 0, 1);
+    return { start: min, end: today };
   }
-  $('#heatmap').innerHTML = cells.join('');
+
+  const cfg = HEAT_RANGES.find((r) => r.id === heatRange) || HEAT_RANGES[4];
+  const start = new Date(today);
+  start.setDate(start.getDate() - (cfg.days - 1));
+  return { start, end: today };
+}
+
+function heatAgg() {
+  const { start, end } = heatWindow();
+  const days = new Map();
+
+  for (const s of state.sessions || []) {
+    if (!s.counted) continue;
+    const d = startOfDay(new Date(s.startedAt));
+    if (d < start || d > end) continue;
+    const k = dayKey(d.getTime());
+    let rec = days.get(k);
+    if (!rec) { rec = { sec: 0, games: new Map() }; days.set(k, rec); }
+    const sec = s.seconds || 0;
+    rec.sec += sec;
+    rec.games.set(s.gameId, (rec.games.get(s.gameId) || 0) + sec);
+  }
+  return { start, end, days };
+}
+
+function topGameOf(rec) {
+  if (!rec || !rec.games.size) return null;
+  let best = null;
+  for (const [id, sec] of rec.games) {
+    if (!best || sec > best.sec) best = { id, sec };
+  }
+  return best;
+}
+
+function levelOf(sec) {
+  if (sec >= 10800) return 4;
+  if (sec >= 5400) return 3;
+  if (sec >= 1800) return 2;
+  if (sec >= 60) return 1;
+  return 0;
+}
+
+function renderHeatmap() {
+  const grid = $('#heatmap');
+  if (!grid) return;
+
+  const { start, end, days } = heatAgg();
+  const months = $('#heatMonths');
+  const wd = $('#heatWd');
+  const legend = $('#heatLegend');
+  const tip = $('#heatTip');
+  if (tip) tip.classList.add('hidden');
+
+  const list = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) list.push(new Date(d));
+
+  const total = [...days.values()].reduce((a, r) => a + r.sec, 0);
+  const active = days.size;
+  const rangeLabel = heatRange === 'all'
+    ? (heatYear === 'all' ? '全部时间' : heatYear + ' 年')
+    : ((HEAT_RANGES.find((r) => r.id === heatRange) || {}).label || '');
+  $('#heatSummary').textContent = `${rangeLabel} · ${hourText(total)} · ${active} 天有记录`;
+
+  // 年份下拉只在「全部时间」时出现
+  const yearSel = $('#heatYear');
+  if (yearSel) {
+    if (heatRange === 'all') {
+      const years = new Set();
+      for (const s of state.sessions || []) {
+        if (s.counted) years.add(new Date(s.startedAt).getFullYear());
+      }
+      years.add(new Date().getFullYear());
+      const opts = ['<option value="all">全部年份</option>']
+        .concat([...years].sort((a, b) => b - a).map((y) => `<option value="${y}">${y} 年</option>`));
+      if (heatYear !== 'all' && !years.has(Number(heatYear))) heatYear = 'all';
+      yearSel.innerHTML = opts.join('');
+      yearSel.value = heatYear;
+      yearSel.classList.remove('hidden');
+    } else {
+      yearSel.classList.add('hidden');
+    }
+  }
+
+  const strip = list.length <= 7;
+  const rowsLayout = list.length <= 42;
+  const cellSize = heatMode === 'cover' ? 16 : (strip ? 20 : (rowsLayout ? 16 : 12));
+  grid.className = 'heatmap '
+    + (rowsLayout ? 'is-rows' : 'is-cols')
+    + (strip ? ' is-strip' : '')
+    + (heatMode === 'cover' ? ' is-cover' : '');
+
+  // 非一周视图：往前后补齐，凑成完整的周，格子排成矩形
+  const padStart = strip ? 0 : (list[0].getDay() + 6) % 7; // 周一为一周第一天
+  const slots = strip ? 7 : Math.ceil((padStart + list.length) / 7) * 7;
+
+  const parts = [];
+  for (let i = 0; i < padStart; i++) parts.push('<i class="is-blank"></i>');
+
+  for (const d of list) {
+    const k = dayKey(d.getTime());
+    const rec = days.get(k);
+    const sec = rec ? rec.sec : 0;
+    const top = topGameOf(rec);
+    const game = top ? state.games.find((g) => g.id === top.id) : null;
+    const dateText = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    const meta = `data-k="${dateText}" data-sec="${sec}" data-game="${esc(game ? game.name : '')}" data-gsec="${top ? top.sec : 0}"`;
+
+    if (heatMode === 'cover') {
+      if (game && game.coverUrl) {
+        parts.push(`<i ${meta}><img src="${esc(game.coverUrl)}" alt="" loading="lazy"></i>`);
+      } else {
+        parts.push(`<i class="l${levelOf(sec)}" ${meta}></i>`);
+      }
+    } else {
+      parts.push(`<i class="l${levelOf(sec)}" ${meta}></i>`);
+    }
+  }
+  for (let i = padStart + list.length; i < slots; i++) parts.push('<i class="is-blank"></i>');
+  grid.innerHTML = parts.join('');
+
+  const weekTop = $('#heatWeekTop');
+  if (rowsLayout) {
+    months.classList.add('hidden');
+    wd.classList.add('hidden');
+    if (weekTop) {
+      weekTop.innerHTML = (strip
+        ? list.map((d) => `<span>${'日一二三四五六'[d.getDay()]}</span>`)
+        : ['一', '二', '三', '四', '五', '六', '日'].map((t) => `<span>${t}</span>`)).join('');
+      weekTop.style.gridTemplateColumns = `repeat(7, ${cellSize}px)`;
+      weekTop.classList.remove('hidden');
+    }
+  } else {
+    if (weekTop) weekTop.classList.add('hidden');
+    const weeks = Math.ceil((padStart + list.length) / 7);
+    const marks = [];
+    let lastMonth = -1;
+    list.forEach((d, idx) => {
+      const m = d.getMonth();
+      if (m === lastMonth) return;
+      lastMonth = m;
+      const col = Math.floor((padStart + idx) / 7) + 1;
+      if (idx === 0 || col <= weeks - 1) {
+        marks.push(`<span style="grid-column:${col}">${m + 1} 月</span>`);
+      }
+    });
+    months.innerHTML = marks.join('');
+    months.style.gridTemplateColumns = `repeat(${weeks}, ${cellSize}px)`;
+    months.classList.toggle('hidden', !marks.length);
+    wd.innerHTML = ['一', '', '三', '', '五', '', ''].map((t) => `<span>${t}</span>`).join('');
+    wd.classList.remove('hidden');
+  }
+
+  if (legend) {
+    legend.innerHTML = heatMode === 'cover'
+      ? '<i class="sample-cover"></i><span>格子里是当天玩得最多的作品 · 灰块表示当天没玩</span>'
+      : '<span>少</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>多</span>';
+  }
+}
+
+function bindHeatTooltip() {
+  const grid = $('#heatmap');
+  const tip = $('#heatTip');
+  if (!grid || !tip) return;
+
+  const place = (x, y) => {
+    const rect = tip.getBoundingClientRect();
+    let left = x + 14;
+    let top = y - rect.height - 12;
+    if (left + rect.width > window.innerWidth - 10) left = x - rect.width - 14;
+    if (top < 10) top = y + 18;
+    tip.style.left = Math.max(8, left) + 'px';
+    tip.style.top = Math.max(8, top) + 'px';
+  };
+
+  const show = (el, x, y) => {
+    const sec = Number(el.dataset.sec || 0);
+    const gsec = Number(el.dataset.gsec || 0);
+    const name = el.dataset.game || '';
+    const parts = (el.dataset.k || '').split('-').map(Number);
+    const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+    const week = '日一二三四五六'[dt.getDay()];
+    tip.innerHTML = `<div class="t-date">${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日 · 周${week}</div>
+      <div class="t-main">${sec ? hourText(sec) : '没有游玩'}</div>
+      ${name ? `<div class="t-game">${esc(name)}<em>${hourText(gsec)}</em></div>` : ''}`;
+    tip.classList.remove('hidden');
+    place(x, y);
+  };
+
+  grid.addEventListener('mouseover', (e) => {
+    const el = e.target.closest('i[data-k]');
+    if (el) show(el, e.clientX, e.clientY);
+  });
+
+  grid.addEventListener('mousemove', (e) => {
+    if (tip.classList.contains('hidden')) return;
+    const el = e.target.closest('i[data-k]');
+    if (!el) return;
+    place(e.clientX, e.clientY);
+  });
+
+  grid.addEventListener('mouseleave', () => tip.classList.add('hidden'));
 }
 
 /* ---------------- 设置 ---------------- */
@@ -1965,6 +2209,9 @@ window.__shotView = (v) => {
     if (g) openDetail(g.id);
     return;
   }
+
+
+
 
 
 

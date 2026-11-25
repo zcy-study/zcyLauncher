@@ -1123,24 +1123,100 @@ body.detail-open .topbar { -webkit-app-region: no-drag; }
   margin: 8px 0 18px;
 }
 
-.heatmap-wrap { display: flex; flex-direction: column; gap: 12px; }
+.heatmap-wrap { display: flex; flex-direction: column; gap: 10px; }
 
-.heatmap {
+/* 面板头：标题 + 范围/模式控件 */
+.heat-head { align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.heat-head-main { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.heat-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+
+.heat-select {
+  height: 28px;
+  padding: 0 26px 0 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.heat-row { display: flex; gap: 6px; min-width: 0; }
+.heat-col { min-width: 0; flex: 1; }
+
+.heat-wd {
   display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(7, 12px);
-  grid-auto-columns: 12px;
+  grid-template-rows: repeat(7, var(--hcell, 12px));
   gap: 3px;
-  align-content: start;
+  width: 11px;
+  flex: 0 0 11px;
+  margin-top: 18px;
+  font-size: 9px;
+  line-height: var(--hcell, 12px);
+  color: var(--text-3);
+  text-align: center;
+}
+.heat-wd span { display: block; height: var(--hcell, 12px); }
+
+.heat-months {
+  display: grid;
+  gap: 3px;
+  height: 14px;
+  margin-bottom: 4px;
+  font-size: 9.5px;
+  color: var(--text-3);
+}
+.heat-months span { white-space: nowrap; }
+
+.heat-weektop {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 4px;
+  font-size: 9.5px;
+  color: var(--text-3);
+}
+.heat-weektop span { text-align: center; }
+
+.heatmap { display: grid; gap: 3px; --hcell: 12px; }
+.heatmap.is-cols {
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, var(--hcell));
+  grid-auto-columns: var(--hcell);
   overflow-x: auto;
   padding-bottom: 2px;
 }
+.heatmap.is-rows {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(7, var(--hcell));
+  grid-auto-rows: var(--hcell);
+}
+.heatmap.is-rows { --hcell: 16px; }
+.heatmap.is-strip { --hcell: 20px; }
+.heatmap.is-cover { --hcell: 16px; }
 
-.heatmap i { border-radius: 2.5px; background: rgba(255, 255, 255, 0.05); }
+.heatmap i {
+  border-radius: 2.5px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  position: relative;
+}
+.heatmap.is-rows i { border-radius: 3.5px; }
+.heatmap.is-cover i { border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.28); }
+
+.heatmap i.is-blank { visibility: hidden; }
+
+.heatmap i img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
 .heatmap i.l1 { background: rgba(217, 164, 65, 0.26); }
 .heatmap i.l2 { background: rgba(217, 164, 65, 0.48); }
 .heatmap i.l3 { background: rgba(217, 164, 65, 0.72); }
 .heatmap i.l4 { background: #DFAE55; }
+
+.heatmap i[data-k] { cursor: default; }
+.heatmap.is-cover i[data-k]:hover { box-shadow: 0 0 0 1.5px #F2CE8C; }
+.heatmap i[data-k]:hover { box-shadow: 0 0 0 1.5px rgba(242, 206, 140, 0.75); }
 
 .heat-legend { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text-3); }
 .heat-legend i { width: 10px; height: 10px; border-radius: 2.5px; background: rgba(255, 255, 255, 0.05); }
@@ -1148,8 +1224,45 @@ body.detail-open .topbar { -webkit-app-region: no-drag; }
 .heat-legend i.l2 { background: rgba(217, 164, 65, 0.48); }
 .heat-legend i.l3 { background: rgba(217, 164, 65, 0.72); }
 .heat-legend i.l4 { background: #DFAE55; }
+.heat-legend i.sample-cover {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #6E5AA8, #B06A8E);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
 .heat-legend span:first-child { margin-right: 2px; }
 .heat-legend span:last-child { margin-left: 2px; }
+.heat-legend .gap { width: 8px; }
+
+/* 悬停提示 */
+.heat-tip {
+  position: fixed;
+  z-index: 420;
+  min-width: 132px;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: rgba(20, 20, 26, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.95);
+  font-size: 11.5px;
+  color: var(--text);
+  pointer-events: none;
+}
+.heat-tip .t-date { color: var(--text-3); font-size: 10.5px; margin-bottom: 4px; }
+.heat-tip .t-main { font-variant-numeric: tabular-nums; }
+.heat-tip .t-game {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  color: #F2CE8C;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.heat-tip .t-game em { font-style: normal; color: var(--text-3); margin-left: 4px; }
 
 .rank { display: flex; flex-direction: column; gap: 12px; }
 

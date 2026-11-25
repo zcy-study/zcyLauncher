@@ -103,10 +103,37 @@
       <section class="view hidden" id="view-stats">
         <div class="metrics" id="statMetrics"></div>
         <div class="panel">
-          <div class="panel-head"><h3>游玩热力</h3><span class="panel-sub">最近一年</span></div>
+          <div class="panel-head heat-head">
+            <div class="heat-head-main">
+              <h3>游玩热力</h3>
+              <span class="panel-sub" id="heatSummary">—</span>
+            </div>
+            <div class="heat-tools">
+              <div class="seg seg-sm" id="heatMode">
+                <button class="seg-btn is-on" data-hmode="time" title="按每天游玩时长着色">时长</button>
+                <button class="seg-btn" data-hmode="cover" title="格子里显示当天玩得最多的作品封面">封面</button>
+              </div>
+              <select class="select heat-select" id="heatRange" title="时间范围">
+                <option value="7d">最近一周</option>
+                <option value="30d">最近一月</option>
+                <option value="90d">最近三月</option>
+                <option value="180d">最近六月</option>
+                <option value="365d" selected>最近一年</option>
+                <option value="all">全部时间</option>
+              </select>
+              <select class="select heat-select hidden" id="heatYear" title="按年份筛选"></select>
+            </div>
+          </div>
           <div class="heatmap-wrap">
-            <div class="heatmap" id="heatmap"></div>
-            <div class="heat-legend">
+            <div class="heat-row">
+              <div class="heat-wd hidden" id="heatWd"></div>
+              <div class="heat-col">
+                <div class="heat-months hidden" id="heatMonths"></div>
+                <div class="heat-weektop hidden" id="heatWeekTop"></div>
+                <div class="heatmap is-cols" id="heatmap"></div>
+              </div>
+            </div>
+            <div class="heat-legend" id="heatLegend">
               <span>少</span>
               <i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i>
               <span>多</span>
@@ -299,6 +326,7 @@
 
 <div class="modal-root hidden" id="modalRoot"></div>
 <div class="toasts" id="toasts"></div>
+  <div class="heat-tip hidden" id="heatTip"></div>
 
 <script src="app.js"></script>
 </body>
