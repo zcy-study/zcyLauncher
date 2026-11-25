@@ -1140,7 +1140,7 @@ body.detail-open .topbar { -webkit-app-region: no-drag; }
 /* 按月份分块的热力图 */
 .heatmap {
   display: grid;
-  grid-template-columns: repeat(auto-fill, var(--blockw, 150px));
+  grid-template-columns: repeat(auto-fill, minmax(var(--blockw, 300px), 1fr));
   gap: 18px 16px;
   justify-content: start;
 }
@@ -1160,10 +1160,13 @@ body.detail-open .topbar { -webkit-app-region: no-drag; }
 
 .hb-grid {
   display: grid;
-  grid-template-columns: repeat(7, var(--hcell, 18px));
-  grid-auto-rows: var(--hcell, 18px);
+  grid-template-columns: repeat(7, 1fr);
   gap: 4px;
 }
+
+/* 时长模式：正方形；封面模式：竖长方形，更接近海报比例 */
+.hb-grid i { aspect-ratio: 1 / 1; }
+.heatmap.is-cover .hb-grid i { aspect-ratio: 0.78; }
 
 .hb-grid i, .hc-grid i {
   border-radius: 3px;

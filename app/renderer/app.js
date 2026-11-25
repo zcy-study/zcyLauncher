@@ -1615,13 +1615,18 @@ function renderHeatmap() {
     grid.innerHTML = compactHeatHtml(list, cellHtml, ccell);
   } else {
     const dayCount = list.length;
-    const cell = heatMode === 'cover'
-      ? (dayCount <= 7 ? 48 : dayCount <= 31 ? 34 : 38)
-      : (dayCount <= 7 ? 40 : dayCount <= 31 ? 26 : 34);
-    const blockW = 7 * cell + 6 * 4;
+    // 块宽自适应铺满整行；最小块宽 300 保证一行 3 块、格子够大
+    const minBlock = 300;
     grid.className = 'heatmap' + (heatMode === 'cover' ? ' is-cover' : '');
-    grid.style.setProperty('--hcell', cell + 'px');
-    grid.style.setProperty('--blockw', blockW + 'px');
+    grid.style.setProperty('--blockw', minBlock + 'px');
+    // 短区间（块少）用定宽轨道并居中，避免左边挤一堆、右边一大片空白
+    if (dayCount <= 31) {
+      grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 380px))';
+      grid.style.justifyContent = 'center';
+    } else {
+      grid.style.gridTemplateColumns = '';
+      grid.style.justifyContent = '';
+    }
 
     // 按自然月切块
     const blocks = [];
