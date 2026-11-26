@@ -67,6 +67,18 @@ function hoursShort(sec) {
   return (sec / 3600).toFixed(1) + ' h';
 }
 
+/**
+ * 卡片下方的小字：
+ * 通关了就看存档在不在本地——不在本地光写「已通关」，在本地是「时长 · 已通关」
+ */
+function cardSub(g, running) {
+  if (running) return '正在游玩';
+  const time = hoursShort(g.totalSeconds);
+  if (g.status !== 'cleared') return time;
+  if (g.clearSave === 'external') return '<em>已通关</em>';
+  return (g.totalSeconds && g.totalSeconds >= 30 ? time + ' · ' : '') + '<em>已通关</em>';
+}
+
 function fmtDate(ts) {
   if (!ts) return '—';
   const d = new Date(ts);
@@ -550,7 +562,7 @@ function renderLibrary() {
       <div class="card-play"><div class="play-circle" title="立即开始">${ICON.play}</div></div>
       <div class="card-meta">
         <div class="card-title">${esc(g.name)}</div>
-        <div class="card-sub">${run ? '正在游玩' : hoursShort(g.totalSeconds)}</div>
+        <div class="card-sub">${cardSub(g, run)}</div>
       </div>
     </article>`;
   };
