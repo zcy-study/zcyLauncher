@@ -1819,14 +1819,14 @@ function poolCard(g) {
 }
 
 function recRow(g, i) {
-  const when = g.clearedAt ? fmtDay(g.clearedAt) : '—';
+  const sub = (g.originalName && g.originalName !== g.name) ? g.originalName : (g.developer || '');
   return `<div class="rec-row" draggable="true" data-rec="${g.id}">
     <span class="rec-handle" title="拖动排序">⠿</span>
-    <span class="rec-idx">${i + 1}</span>
+    <span class="rec-idx">${String(i + 1).padStart(2, '0')}</span>
     <div class="rec-cover">${coverBlock(g, 'rec-img')}</div>
     <div class="rec-main">
       <div class="rec-name">${esc(g.name)}</div>
-      <div class="rec-meta">通关于 ${when} · 累计 ${hoursShort(g.totalSeconds)}</div>
+      ${sub ? `<div class="rec-sub">${esc(sub)}</div>` : ''}
     </div>
     <span class="rec-tier ${g.tier ? 't-' + g.tier : 'is-none'}">${g.tier ? tierLabel(g.tier) : '未分级'}</span>
   </div>`;
