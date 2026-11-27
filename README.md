@@ -7,7 +7,7 @@ Electron + 原生 JavaScript（主进程 / 渲染进程都是 CommonJS，无框�
 
 ## 版本
 
-当前版本 **1.4.2**。
+当前版本 **1.5.0**。
 
 - 版本改动摘要 → [CHANGELOG.md](CHANGELOG.md)
 - 按时间线的开发过程、技术决策与踩坑 → [开发记录.md](开发记录.md)
