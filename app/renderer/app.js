@@ -1867,7 +1867,7 @@ function renderCleared() {
           ${TIERS.map((t) => {
             const list = cleared.filter((g) => g.tier === t.id);
             return `<div class="tier-row">
-              <div class="tier-label t-${t.id}"><b>${t.label}</b><span>${t.note}</span></div>
+              <div class="tier-label t-${t.id}"><b>${t.label}</b></div>
               <div class="tier-lane" data-drop-tier="${t.id}">
                 ${list.length ? list.map(tierCard).join('') : '<span class="tier-empty">拖到这里</span>'}
               </div>
