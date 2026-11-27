@@ -290,6 +290,7 @@ function bindEvents() {
   // 游玩热力：时间范围 / 年份 / 显示模式
   if ($('#heatMode')) {
     bindClearedDnD();
+  bindClearedTip();
 
   $('#heatMode').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-hmode]');
@@ -1798,13 +1799,20 @@ function orderedCleared() {
 }
 
 function tierCard(g) {
-  return `<div class="tier-card" draggable="true" data-drag="${g.id}" title="${esc(g.name)}">
+  const parts = [];
+  if ((g.totalSeconds || 0) >= 30) parts.push(`累计 ${hoursShort(g.totalSeconds)}`);
+  if (g.developer) parts.push(g.developer);
+  const sub = parts.join(' · ');
+  return `<div class="tier-card" draggable="true" data-drag="${g.id}" data-name="${esc(g.name)}" data-sub="${esc(sub)}">
     ${coverBlock(g, 'tier-cover')}
   </div>`;
 }
 
 function poolCard(g) {
-  return `<div class="pool-card ${g.tier ? 'is-tiered' : ''}" draggable="true" data-drag="${g.id}" title="${esc(g.name)}">
+  const parts = [g.tier ? `当前档位 ${tierLabel(g.tier)}` : '还没分级'];
+  if ((g.totalSeconds || 0) >= 30) parts.push(`累计 ${hoursShort(g.totalSeconds)}`);
+  const sub = parts.join(' · ');
+  return `<div class="pool-card ${g.tier ? 'is-tiered' : ''}" draggable="true" data-drag="${g.id}" data-name="${esc(g.name)}" data-sub="${esc(sub)}">
     ${coverBlock(g, 'pool-cover')}
     ${g.tier ? `<span class="pool-tag t-${g.tier}">${tierLabel(g.tier)}</span>` : ''}
   </div>`;
@@ -1898,6 +1906,44 @@ function renderCleared() {
 let clearedDragging = null;
 let clearedDragRec = null;
 let clearedJustDragged = false;
+
+function bindClearedTip() {
+  const host = el.cleared;
+  const tip = $('#hoverTip');
+  if (!host || !tip || host.dataset.tip === '1') return;
+  host.dataset.tip = '1';
+
+  const hide = () => tip.classList.add('hidden');
+
+  const place = (x, y) => {
+    const rect = tip.getBoundingClientRect();
+    let left = x + 16;
+    let top = y - rect.height - 14;
+    if (left + rect.width > window.innerWidth - 12) left = x - rect.width - 16;
+    if (top < 12) top = y + 20;
+    tip.style.left = Math.max(10, left) + 'px';
+    tip.style.top = Math.max(10, top) + 'px';
+  };
+
+  host.addEventListener('mouseover', (e) => {
+    const card = e.target.closest('[data-name]');
+    if (!card || clearedDragging) { hide(); return; }
+    const sub = card.dataset.sub || '';
+    tip.innerHTML = `<b>${esc(card.dataset.name)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}`;
+    tip.classList.remove('hidden');
+    place(e.clientX, e.clientY);
+  });
+
+  host.addEventListener('mousemove', (e) => {
+    if (tip.classList.contains('hidden')) return;
+    if (!e.target.closest('[data-name]')) return;
+    place(e.clientX, e.clientY);
+  });
+
+  host.addEventListener('mouseleave', hide);
+  host.addEventListener('dragstart', hide);
+  el.content.addEventListener('scroll', hide, { passive: true });
+}
 
 function bindClearedDnD() {
   const host = el.cleared;
@@ -2539,6 +2585,7 @@ window.__shotView = (v) => {
     if (g) openDetail(g.id);
     return;
   }
+
 
 
 

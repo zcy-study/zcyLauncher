@@ -2084,7 +2084,7 @@ body.privacy .hero-cover:hover img { filter: none; }
 
 .tier-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 316px;
+  grid-template-columns: minmax(0, 1fr) 348px;
   gap: 18px;
   align-items: start;
 }
@@ -2093,7 +2093,7 @@ body.privacy .hero-cover:hover img { filter: none; }
 
 .tier-row {
   display: grid;
-  grid-template-columns: 68px minmax(0, 1fr) 22px;
+  grid-template-columns: 76px minmax(0, 1fr) 24px;
   gap: 10px;
   align-items: stretch;
 }
@@ -2109,12 +2109,12 @@ body.privacy .hero-cover:hover img { filter: none; }
   color: #22190a;
   box-shadow: 0 8px 18px -12px rgba(0, 0, 0, 0.9);
 }
-.tier-label b { font-size: 19px; font-weight: 700; line-height: 1; letter-spacing: 1px; }
+.tier-label b { font-size: 21px; font-weight: 700; line-height: 1; letter-spacing: 1px; }
 .tier-label b.sm { font-size: 15px; }
 
 .tier-lane {
-  min-height: 96px;
-  padding: 9px;
+  min-height: 116px;
+  padding: 10px;
   border-radius: 12px;
   border: 1px dashed rgba(255, 255, 255, 0.09);
   background: rgba(255, 255, 255, 0.018);
@@ -2130,7 +2130,7 @@ body.privacy .hero-cover:hover img { filter: none; }
   font-size: 11.5px;
   color: var(--text-3);
   opacity: 0.5;
-  line-height: 78px;
+  line-height: 94px;
   padding: 0 8px;
 }
 
@@ -2143,8 +2143,8 @@ body.privacy .hero-cover:hover img { filter: none; }
 }
 
 .tier-card {
-  width: 58px;
-  height: 79px;
+  width: 70px;
+  height: 96px;
   border-radius: 8px;
   overflow: hidden;
   cursor: grab;
@@ -2283,3 +2283,38 @@ body.privacy .hero-cover:hover img { filter: none; }
 .cleared-empty svg { color: rgba(242, 206, 140, 0.55); }
 .cleared-empty h3 { margin: 4px 0 0; font-size: 15px; color: var(--text-2); font-weight: 500; }
 .cleared-empty p { margin: 0 0 6px; font-size: 12px; line-height: 1.7; max-width: 340px; }
+
+/* 通关页的悬停提示 */
+.hover-tip {
+  position: fixed;
+  z-index: 430;
+  max-width: 280px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(32, 32, 40, 0.98), rgba(20, 20, 26, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  box-shadow: 0 20px 44px -22px rgba(0, 0, 0, 0.98), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+  animation: hoverTipIn 0.13s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.hover-tip b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text);
+  letter-spacing: 0.2px;
+}
+.hover-tip span {
+  display: block;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+@keyframes hoverTipIn {
+  from { opacity: 0; transform: translateY(3px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
