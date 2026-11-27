@@ -293,6 +293,7 @@ function bindEvents() {
       if (!btn) return;
       heatMode = btn.dataset.hmode;
       $$('#heatMode .seg-btn').forEach((b) => b.classList.toggle('is-on', b === btn));
+      window.api.saveSettings({ heatMode });
       renderHeatmap();
     });
     $('#heatLayout').addEventListener('click', (e) => {
@@ -300,14 +301,17 @@ function bindEvents() {
       if (!btn) return;
       heatLayout = btn.dataset.hlayout;
       $$('#heatLayout .seg-btn').forEach((b) => b.classList.toggle('is-on', b === btn));
+      window.api.saveSettings({ heatLayout });
       renderHeatmap();
     });
     $('#heatRange').addEventListener('change', (e) => {
       heatRange = e.target.value;
+      window.api.saveSettings({ heatRange });
       renderHeatmap();
     });
     $('#heatYear').addEventListener('change', (e) => {
       heatYear = e.target.value;
+      window.api.saveSettings({ heatYear });
       renderHeatmap();
     });
     bindHeatTooltip();
@@ -1566,9 +1570,31 @@ function compactHeatHtml(list, cellHtml, cell) {
     </div>`;
 }
 
+let heatPrefsLoaded = false;
+
+function applyHeatControls() {
+  $$('#heatMode .seg-btn').forEach((b) => b.classList.toggle('is-on', b.dataset.hmode === heatMode));
+  $$('#heatLayout .seg-btn').forEach((b) => b.classList.toggle('is-on', b.dataset.hlayout === heatLayout));
+  const rangeSel = $('#heatRange');
+  if (rangeSel) rangeSel.value = heatRange;
+}
+
+/** 首次渲染时把上次选的范围/年份/布局/模式读回来 */
+function ensureHeatPrefs() {
+  if (heatPrefsLoaded) return;
+  const s = state.settings || {};
+  if (s.heatRange) heatRange = s.heatRange;
+  if (s.heatYear) heatYear = s.heatYear;
+  if (s.heatLayout) heatLayout = s.heatLayout;
+  if (s.heatMode) heatMode = s.heatMode;
+  heatPrefsLoaded = true;
+  applyHeatControls();
+}
+
 function renderHeatmap() {
   const grid = $('#heatmap');
   if (!grid) return;
+  ensureHeatPrefs();
 
   const { start, end, days } = heatAgg();
   const months = $('#heatMonths');
@@ -2284,6 +2310,7 @@ window.__shotView = (v) => {
     if (g) openDetail(g.id);
     return;
   }
+
 
 
 
