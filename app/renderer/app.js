@@ -130,7 +130,8 @@ const el = {
   pageTitle: $('#pageTitle'),
   footHours: $('#footHours'),
   search: $('#searchInput'),
-  sort: $('#sortSelect')
+  sort: $('#sortSelect'),
+  cleared: $('#view-cleared')
 };
 
 let heroId = null;
@@ -288,7 +289,9 @@ function bindEvents() {
 
   // 游玩热力：时间范围 / 年份 / 显示模式
   if ($('#heatMode')) {
-    $('#heatMode').addEventListener('click', (e) => {
+    bindClearedDnD();
+
+  $('#heatMode').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-hmode]');
       if (!btn) return;
       heatMode = btn.dataset.hmode;
@@ -477,8 +480,12 @@ function applyLayout() {
   $('#view-stats').classList.toggle('hidden', view !== 'stats');
   $('#view-settings').classList.toggle('hidden', view !== 'settings');
   $('#view-shots').classList.toggle('hidden', view !== 'shots');
+  if (el.cleared) el.cleared.classList.toggle('hidden', view !== 'cleared');
 
-  el.pageTitle.textContent = isLib ? '游戏库' : view === 'stats' ? '统计' : view === 'shots' ? '截图' : '设置';
+  el.pageTitle.textContent = isLib ? '游戏库'
+    : view === 'stats' ? '统计'
+    : view === 'shots' ? '截图'
+    : view === 'cleared' ? '通关' : '设置';
   $('#btnAdd').classList.toggle('hidden', !isLib);
   $('#btnLayout').classList.toggle('hidden', !isLib);
   el.search.closest('.search').classList.toggle('hidden', !isLib || heroMode);
@@ -489,6 +496,7 @@ function applyLayout() {
 
   if (view === 'shots') renderShots();
   if (view === 'stats') renderStats();
+  if (view === 'cleared') renderCleared();
   if (view === 'settings') renderSettings();
 }
 
@@ -1760,6 +1768,227 @@ function bindHeatTooltip() {
   grid.addEventListener('mouseleave', () => tip.classList.add('hidden'));
 }
 
+/* ---------------- 通关档案 ---------------- */
+
+const TIERS = [
+  { id: 'top', label: '夯', note: '本命级' },
+  { id: 'high', label: '上', note: '很喜欢' },
+  { id: 'upperMid', label: '中上', note: '挺不错' },
+  { id: 'mid', label: '中', note: '还不错' },
+  { id: 'lowerMid', label: '中下', note: '有点可惜' },
+  { id: 'low', label: '下', note: '不合口味' }
+];
+
+const tierLabel = (id) => (TIERS.find((t) => t.id === id) || {}).label || '';
+
+function clearedGames() {
+  return state.games.filter((g) => g.status === 'cleared');
+}
+
+/** 通关顺序：completionOrder 里有的按数组顺序，剩下的按通关时间接在后面 */
+function orderedCleared() {
+  const cleared = clearedGames();
+  const byId = new Map(cleared.map((g) => [g.id, g]));
+  const order = (state.settings.completionOrder || []).filter((id) => byId.has(id));
+  const seen = new Set(order);
+  const rest = cleared
+    .filter((g) => !seen.has(g.id))
+    .sort((a, b) => (a.clearedAt || a.lastPlayedAt || 0) - (b.clearedAt || b.lastPlayedAt || 0));
+  return [...order.map((id) => byId.get(id)), ...rest];
+}
+
+function tierCard(g) {
+  return `<div class="tier-card" draggable="true" data-drag="${g.id}" title="${esc(g.name)}">
+    ${coverBlock(g, 'tier-cover')}
+  </div>`;
+}
+
+function poolCard(g) {
+  return `<div class="pool-card ${g.tier ? 'is-tiered' : ''}" draggable="true" data-drag="${g.id}" title="${esc(g.name)}">
+    ${coverBlock(g, 'pool-cover')}
+    ${g.tier ? `<span class="pool-tag t-${g.tier}">${tierLabel(g.tier)}</span>` : ''}
+  </div>`;
+}
+
+function recRow(g, i) {
+  const when = g.clearedAt ? fmtDay(g.clearedAt) : '—';
+  return `<div class="rec-row" draggable="true" data-rec="${g.id}">
+    <span class="rec-handle" title="拖动排序">⠿</span>
+    <span class="rec-idx">${i + 1}</span>
+    <div class="rec-cover">${coverBlock(g, 'rec-img')}</div>
+    <div class="rec-main">
+      <div class="rec-name">${esc(g.name)}</div>
+      <div class="rec-meta">通关于 ${when} · 累计 ${hoursShort(g.totalSeconds)}</div>
+    </div>
+    <span class="rec-tier ${g.tier ? 't-' + g.tier : 'is-none'}">${g.tier ? tierLabel(g.tier) : '未分级'}</span>
+  </div>`;
+}
+
+function renderCleared() {
+  const host = el.cleared;
+  if (!host) return;
+
+  const cleared = clearedGames();
+  if (!cleared.length) {
+    host.innerHTML = `<div class="cleared-page">
+      <div class="panel cleared-empty">
+        <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 4.2h8v4.3a4 4 0 0 1-8 0V4.2Z" /><path d="M8 5.4H5.6v1.1a3 3 0 0 0 2.9 3" /><path d="M16 5.4h2.4v1.1a3 3 0 0 1-2.9 3" /><path d="M12 12.6v3.6" /><path d="M8.6 19.4h6.8" /><path d="M10.4 16.2h3.2l.7 3.2H9.7l.7-3.2Z" />
+        </svg>
+        <h3>还没有通关的游戏</h3>
+        <p>在详情页把状态改成「已通关」，这里就会出现分级看板和通关记录。</p>
+        <button class="btn" data-go-library>回游戏库看看</button>
+      </div>
+    </div>`;
+    return;
+  }
+
+  const ordered = orderedCleared();
+  const tiered = cleared.filter((g) => g.tier).length;
+
+  host.innerHTML = `<div class="cleared-page">
+    <div class="cleared-hero">
+      <div class="ch-main">
+        <h2>通关档案</h2>
+        <p>${cleared.length} 部已通关 · ${tiered} 部已分级</p>
+      </div>
+      <div class="ch-stats">
+        ${TIERS.map((t) => `<div class="ch-stat t-${t.id}"><b>${cleared.filter((g) => g.tier === t.id).length}</b><span>${t.label}</span></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>我的分级</h3>
+        <span class="panel-sub">把右边的封面拖进等级，随时可以换；拖回右侧即取消分级</span>
+      </div>
+      <div class="tier-layout">
+        <div class="tier-board">
+          ${TIERS.map((t) => {
+            const list = cleared.filter((g) => g.tier === t.id);
+            return `<div class="tier-row">
+              <div class="tier-label t-${t.id}"><b>${t.label}</b><span>${t.note}</span></div>
+              <div class="tier-lane" data-drop-tier="${t.id}">
+                ${list.length ? list.map(tierCard).join('') : '<span class="tier-empty">拖到这里</span>'}
+              </div>
+              <span class="tier-count">${list.length || ''}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <aside class="tier-pool">
+          <div class="pool-head"><span>全部通关作品</span><b>${cleared.length}</b></div>
+          <div class="pool-grid" data-drop-pool="1">
+            ${ordered.map(poolCard).join('')}
+          </div>
+          <p class="pool-hint">按住封面拖动，带角标的表示已经分过级</p>
+        </aside>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>通关记录</h3>
+        <span class="panel-sub">拖动左侧手柄调整顺序，新通关的默认排最后</span>
+      </div>
+      <div class="rec-list">${ordered.map(recRow).join('')}</div>
+    </div>
+  </div>`;
+}
+
+let clearedDragging = null;
+let clearedDragRec = null;
+let clearedJustDragged = false;
+
+function bindClearedDnD() {
+  const host = el.cleared;
+  if (!host || host.dataset.dnd === '1') return;
+  host.dataset.dnd = '1';
+
+  host.addEventListener('dragstart', (e) => {
+    const card = e.target.closest('[data-drag]');
+    if (card) {
+      clearedDragging = card.dataset.drag;
+      clearedJustDragged = true;
+      e.dataTransfer.setData('text/plain', clearedDragging);
+      e.dataTransfer.effectAllowed = 'move';
+      card.classList.add('is-dragging');
+      return;
+    }
+    const row = e.target.closest('[data-rec]');
+    if (row) {
+      clearedDragRec = row.dataset.rec;
+      clearedJustDragged = true;
+      e.dataTransfer.setData('text/plain', clearedDragRec);
+      e.dataTransfer.effectAllowed = 'move';
+      row.classList.add('is-dragging');
+    }
+  });
+
+  host.addEventListener('dragend', () => {
+    clearedDragging = null;
+    clearedDragRec = null;
+    host.querySelectorAll('.is-dragging').forEach((n) => n.classList.remove('is-dragging'));
+    host.querySelectorAll('.is-over').forEach((n) => n.classList.remove('is-over'));
+    host.querySelectorAll('.drop-before').forEach((n) => n.classList.remove('drop-before'));
+    setTimeout(() => { clearedJustDragged = false; }, 260);
+  });
+
+  host.addEventListener('dragover', (e) => {
+    if (clearedDragging) {
+      const zone = e.target.closest('[data-drop-tier], [data-drop-pool]');
+      if (!zone) return;
+      e.preventDefault();
+      host.querySelectorAll('.is-over').forEach((n) => { if (n !== zone) n.classList.remove('is-over'); });
+      zone.classList.add('is-over');
+      return;
+    }
+    if (clearedDragRec) {
+      const row = e.target.closest('[data-rec]');
+      if (!row || row.dataset.rec === clearedDragRec) return;
+      e.preventDefault();
+      host.querySelectorAll('.drop-before').forEach((n) => { if (n !== row) n.classList.remove('drop-before'); });
+      row.classList.add('drop-before');
+    }
+  });
+
+  host.addEventListener('dragleave', (e) => {
+    const zone = e.target.closest('[data-drop-tier], [data-drop-pool], [data-rec]');
+    if (zone) zone.classList.remove('is-over', 'drop-before');
+  });
+
+  host.addEventListener('drop', async (e) => {
+    setTimeout(() => { clearedJustDragged = false; }, 300);
+    if (clearedDragging) {
+      const zone = e.target.closest('[data-drop-tier], [data-drop-pool]');
+      if (!zone) return;
+      e.preventDefault();
+      const id = clearedDragging;
+      clearedDragging = null;
+      await window.api.updateGame(id, { tier: zone.dataset.dropTier || '' });
+      return;
+    }
+    if (clearedDragRec) {
+      const row = e.target.closest('[data-rec]');
+      if (!row) return;
+      e.preventDefault();
+      const ids = [...host.querySelectorAll('.rec-row')].map((n) => n.dataset.rec);
+      const from = ids.indexOf(clearedDragRec);
+      const to = ids.indexOf(row.dataset.rec);
+      clearedDragRec = null;
+      if (from < 0 || to < 0 || from === to) return;
+      ids.splice(to, 0, ids.splice(from, 1)[0]);
+      await window.api.saveSettings({ completionOrder: ids });
+    }
+  });
+
+  host.addEventListener('click', (e) => {
+    if (e.target.closest('[data-go-library]')) { switchView('library'); return; }
+    if (clearedJustDragged) return;
+    const card = e.target.closest('[data-drag]');
+    if (card) openDetail(card.dataset.drag);
+  });
+}
+
 /* ---------------- 设置 ---------------- */
 
 let lastPwdJson = '';
@@ -2310,6 +2539,8 @@ window.__shotView = (v) => {
     if (g) openDetail(g.id);
     return;
   }
+
+
 
 
 

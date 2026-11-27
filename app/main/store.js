@@ -230,14 +230,22 @@ class Store {
   updateGame(id, patch) {
     const game = this.findGame(id);
     if (!game) return null;
+    const wasCleared = game.status === 'cleared';
     const allowed = [
       'name', 'originalName', 'exePath', 'workDir', 'engine', 'cover',
       'developer', 'released', 'vndbId', 'trackMode', 'trackValue',
-      'initialDelay', 'status', 'clearSave', 'notes', 'tags', 'coverVersion',
+      'initialDelay', 'status', 'clearSave', 'tier', 'clearedAt', 'notes', 'tags', 'coverVersion',
       'totalSeconds', 'launchCount', 'firstPlayedAt', 'lastPlayedAt'
     ];
     for (const key of allowed) {
       if (Object.prototype.hasOwnProperty.call(patch, key)) game[key] = patch[key];
+    }
+    // 首次标记为已通关：记下时间，并在通关顺序里排到最后
+    if (!wasCleared && game.status === 'cleared') {
+      if (!game.clearedAt) game.clearedAt = Date.now();
+      const order = Array.isArray(this.data.settings.completionOrder) ? this.data.settings.completionOrder : [];
+      if (!order.includes(game.id)) order.push(game.id);
+      this.data.settings.completionOrder = order;
     }
     game.updatedAt = Date.now();
     this.save(true);

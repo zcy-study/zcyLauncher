@@ -32,6 +32,12 @@
         </svg>
         <span>统计</span>
       </button>
+      <button class="nav-item" data-view="cleared">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 4.2h8v4.3a4 4 0 0 1-8 0V4.2Z" /><path d="M8 5.4H5.6v1.1a3 3 0 0 0 2.9 3" /><path d="M16 5.4h2.4v1.1a3 3 0 0 1-2.9 3" /><path d="M12 12.6v3.6" /><path d="M8.6 19.4h6.8" /><path d="M10.4 16.2h3.2l.7 3.2H9.7l.7-3.2Z" />
+        </svg>
+        <span>通关</span>
+      </button>
       <button class="nav-item" data-view="settings">
         <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3.2" />
@@ -146,6 +152,8 @@
           <div class="session-list" id="recentSessions"></div>
         </div>
       </section>
+
+      <section class="view hidden" id="view-cleared"></section>
 
       <section class="view hidden" id="view-settings">
         <div class="panel">
